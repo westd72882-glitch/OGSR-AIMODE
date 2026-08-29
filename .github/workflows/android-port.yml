@@ -45,14 +45,9 @@ jobs:
 
       - name: Build APK
         working-directory: android-port
-        run: buildozer -v android debug
-
-      - name: Report result
-        if: always()
-        working-directory: android-port
         run: |
-          echo "--- artifacts produced ---"
-          ls -la bin/ 2>/dev/null || echo "no bin/ directory - build did not reach packaging"
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build-output.log
 
       - name: Upload APK
         if: success()
@@ -62,12 +57,14 @@ jobs:
           path: android-port/bin/*.apk
           if-no-files-found: error
 
-      - name: Upload build log on failure
+      # Keep this last: the job log is read from the tail, so the failure
+      # has to be the final thing printed or it scrolls out of reach.
+      - name: Failure summary
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: buildozer-log
-          path: |
-            android-port/.buildozer/**/*.log
-            ~/.buildozer/**/*.log
-          if-no-files-found: ignore
+        working-directory: android-port
+        run: |
+          echo "================ LAST 70 LINES ================"
+          tail -n 70 build-output.log 2>/dev/null || echo "no build output captured"
+          echo "================ ERROR LINES ================"
+          grep -inE "error|failed|traceback|not found|no module|cannot|exception" \
+            build-output.log 2>/dev/null | tail -n 25 || true
