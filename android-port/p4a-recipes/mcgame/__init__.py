@@ -8,10 +8,13 @@ ABI and installs the `mc` package into the app's site-packages instead.
 
 import glob
 import os
-from os.path import dirname, join
+import shutil
+from os.path import dirname, isdir, join
 
-from pythonforandroid.logger import info, warning
+import sh
+from pythonforandroid.logger import info, shprint, warning
 from pythonforandroid.recipe import CythonRecipe, IncludedFilesBehaviour
+from pythonforandroid.util import current_directory
 
 
 class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
@@ -39,11 +42,7 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
     GENERATED_HEADERS = ('_numpyconfig.h', '__multiarray_api.h')
 
     def prebuild_arch(self, arch):
-        """Drop generated C left over from a previous run.
-
-        Belt and braces alongside cython_args: whatever Cython decides, no
-        stale translation unit survives into the compile step.
-        """
+        """Drop generated C left over from a previous run."""
         super().prebuild_arch(arch)
 
         build_dir = self.get_build_dir(arch.arch)
@@ -52,6 +51,42 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
             os.remove(path)
         if stale:
             info('mcgame: removed %d stale generated C file(s)' % len(stale))
+
+    def install_python_package(self, arch, name=None, env=None, is_dir=True):
+        """Install the built package without pip.
+
+        p4a installs with hostpython3's own pip, which in this environment
+        is broken - importing it raises
+
+            ImportError: cannot import name 'BuildDependencyInstallError'
+                         from 'pip._internal.exceptions'
+
+        Nothing here needs a package manager: run setup.py build, which puts
+        the compiled extensions and the package data side by side under
+        build/lib.*, and copy that tree into the app's site-packages.
+        """
+        if env is None:
+            env = self.get_recipe_env(arch)
+
+        build_dir = self.get_build_dir(arch.arch)
+        with current_directory(build_dir):
+            shprint(sh.Command(self.ctx.hostpython), 'setup.py', 'build', '-v',
+                    _env=env, *self.setup_extra_args)
+
+        staged = sorted(glob.glob(join(build_dir, 'build', 'lib.*')))
+        if not staged:
+            raise RuntimeError(
+                'mcgame: setup.py build produced no build/lib.* directory')
+
+        target = self.ctx.get_python_install_dir(arch.arch)
+        info('mcgame: installing %s into %s' % (staged[-1], target))
+        for entry in os.listdir(staged[-1]):
+            source = join(staged[-1], entry)
+            destination = join(target, entry)
+            if isdir(source):
+                shutil.copytree(source, destination, dirs_exist_ok=True)
+            else:
+                shutil.copy2(source, destination)
 
     def get_recipe_env(self, arch, **kwargs):
         env = super().get_recipe_env(arch, **kwargs)
