@@ -124,8 +124,9 @@ jobs:
             build-output.log 2>/dev/null | tail -n 40 || true
           echo "--- sources present in the recipe build dir ---"
           d=$(find .buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
-          echo "dir: $d"
-          if [ -n "$d" ]; then
-            echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
-            echo "top level:"; ls -1 "$d" | head -20
-          fi
+          [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
+
+          # Unfiltered, and last: the second setup.py run fails for a reason
+          # none of the greps above match.
+          echo "================ END OF BUILD OUTPUT ================"
+          tail -n 45 build-output.log 2>/dev/null || echo "no build output"
