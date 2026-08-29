@@ -76,3 +76,6 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
         warning('mcgame: no numpy include dir carries %s; falling back to '
                 'every candidate' % ', '.join(self.GENERATED_HEADERS))
         return sorted(set(candidates))
+
+
+recipe = MCGameRecipe()
