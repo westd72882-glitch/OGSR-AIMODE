@@ -107,33 +107,60 @@ jobs:
 
       # Must stay the very last step: the job log is read from its tail, so
       # anything after this buries the failure again.
-      - name: Failure summary
-        if: failure()
-        working-directory: android-port
+      # Reading CI logs through the API costs far more than reading a file
+      # from the repo, and this runs on every outcome, so the result is
+      # always one small file away. ci-status/ is outside the paths filter
+      # above, so committing it cannot retrigger the workflow.
+      - name: Record the outcome in the repo
+        if: always()
         run: |
-          echo "================ COMPILE ERRORS ================"
-          grep -n -A 14 "Error compiling Cython file" build-output.log 2>/dev/null \
-            | head -n 50 || true
-          grep -inE "(fatal error|undeclared|undefined reference|no such file)" \
-            build-output.log 2>/dev/null | tail -n 10 || true
+          summary=/tmp/last-build.md
+          {
+            echo "# Build ${{ github.run_number }} — ${{ job.status }}"
+            echo
+            echo "commit: ${{ github.sha }}"
+            echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+          } > "$summary"
 
-          # Kept last: the job log is read from its tail, so whatever matters
-          # most has to be printed at the very end.
-          echo "================ CYTHONISE STEP ================"
-          grep -n -A 4 "Running cython where appropriate\|Cythonize \|first build failed\|skipping manual" \
-            build-output.log 2>/dev/null | tail -n 40 || true
-          echo "--- sources present in the recipe build dir ---"
-          d=$(find .buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
-          [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
-
-          # Buildozer closes with a ~40 line environment dump, so a plain
-          # tail shows only that. Anchor on it and print what came before -
-          # that is where the real error sits.
-          echo "================ ERROR BEFORE THE ENV DUMP ================"
-          end=$(grep -n "ENVIRONMENT:" build-output.log 2>/dev/null | tail -1 | cut -d: -f1)
-          if [ -n "$end" ]; then
-            start=$((end > 90 ? end - 90 : 1))
-            sed -n "${start},${end}p" build-output.log
-          else
-            tail -n 60 build-output.log
+          log=android-port/build-output.log
+          if [ -f "$log" ]; then
+            {
+              echo '## Compile errors'
+              echo '```'
+              grep -n -A 12 "Error compiling Cython file" "$log" 2>/dev/null | head -n 40
+              grep -inE "(fatal error|undeclared|no such file|not a supported wheel)" \
+                "$log" 2>/dev/null | tail -n 8
+              echo '```'
+              echo
+              echo '## Cythonise + recipe'
+              echo '```'
+              grep -nE "mcgame:|Cythonize |first build failed" "$log" 2>/dev/null | tail -n 15
+              d=$(find android-port/.buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
+              [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
+              echo '```'
+              echo
+              echo "## Failure (log has $(wc -l < "$log") lines)"
+              echo '```'
+              end=$(grep -n "ENVIRONMENT:" "$log" 2>/dev/null | tail -1 | cut -d: -f1)
+              if [ -n "$end" ]; then
+                start=$((end > 80 ? end - 80 : 1)); sed -n "${start},${end}p" "$log"
+              else
+                tail -n 50 "$log"
+              fi
+              echo '```'
+            } >> "$summary"
           fi
+
+          cat "$summary"
+
+          branch="${{ github.ref_name }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$branch"
+          git checkout -B "$branch" "origin/$branch"
+          mkdir -p ci-status
+          cp "$summary" ci-status/last-build.md
+          git add ci-status/last-build.md
+          git commit -m "ci: record build ${{ github.run_number }} [skip ci]" || exit 0
+          git push origin "HEAD:$branch"
