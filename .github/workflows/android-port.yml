@@ -111,6 +111,13 @@ jobs:
         if: failure()
         working-directory: android-port
         run: |
+          echo "================ DID P4A CYTHONISE? ================"
+          grep -n -A 6 "Running cython where appropriate\|Cythonize \|Trying first build" \
+            build-output.log 2>/dev/null | head -n 60 || true
+          echo "--- .pyx and .c present in the recipe build dir ---"
+          d=$(find .buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
+          echo "dir: $d"
+          [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
           echo "================ WHAT CYTHONISED THIS ================"
           python3 -c "import numpy, Cython, sys; print('python', sys.version); print('numpy', numpy.__version__, numpy.__file__); print('cython', Cython.__version__)" || true
           echo "--- the offending generated lines ---"
