@@ -13,7 +13,12 @@ source.exclude_dirs = game,p4a-recipes,bin,.buildozer
 version = 20100223
 
 # mcgame is the local recipe that cythonises the game's 33 .pyx modules.
-requirements = python3,kivy,numpy,pillow,nbtlib,mcgame
+# charset_normalizer is listed on purpose. p4a's resolver skips any
+# package already named in the requirements; without it the resolver
+# picks the Android wheel from PyPI and passes it on as a URL, which
+# no presence check can match, so the whole pymodules stage runs and
+# dies in its virtualenv's broken pip.
+requirements = python3,kivy,numpy,pillow,nbtlib,charset_normalizer,mcgame
 
 p4a.local_recipes = ./p4a-recipes
 
