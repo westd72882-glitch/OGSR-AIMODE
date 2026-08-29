@@ -1,13 +1,17 @@
 """Lets setup.py run under python-for-android's hostpython3.
 
-hostpython3 is a bare interpreter built by p4a; it has neither numpy nor
-Cython, while setup.py imports both at module level. It does not actually
-need them: p4a cythonises every .pyx with the *runner's* Python before
-calling setup.py, so the .c sources already exist by then, and the only
-thing still wanted from numpy is its header directory, which the mcgame
-recipe passes in through the environment.
+hostpython3 is a bare interpreter built by p4a; it has no numpy, while
+setup.py imports it at module level purely for its header directory. The
+mcgame recipe passes that directory in through the environment instead.
 
-On a host that does have both, this defers to the real ones.
+It does ship a Cython, but an old one that still bundles its own
+numpy/__init__.pxd written for numpy 1, where the descriptor's subarray
+field was public. Cythonising with it produces `d->subarray`, which does
+not compile against numpy 2 headers. p4a runs its own cythonisation step
+with the modern Cython on the build host, and its build sequence expects
+the first setup.py invocation to fail for want of .c files - so this
+never calls Cython at all and simply points each extension at the .c that
+step produces.
 """
 
 import os
@@ -26,17 +30,9 @@ try:
 except ImportError:
     numpy = _NumpyStub()
 
-try:
-    from Cython.Build import cythonize as _real_cythonize
-except ImportError:
-    _real_cythonize = None
-
 
 def cythonize(extensions, **kwargs):
-    if _real_cythonize is not None:
-        return _real_cythonize(extensions, **kwargs)
-
-    # No Cython here: point each extension at the .c file p4a generated.
+    """Map .pyx sources onto the .c files p4a generates. Never runs Cython."""
     for extension in extensions:
         extension.sources = [
             source[:-len('.pyx')] + '.c' if source.endswith('.pyx') else source
