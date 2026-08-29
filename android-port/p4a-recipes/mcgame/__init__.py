@@ -7,10 +7,10 @@ ABI and installs the `mc` package into the app's site-packages instead.
 """
 
 import glob
+import os
 from os.path import dirname, join
 
-import sh
-from pythonforandroid.logger import info, shprint, warning
+from pythonforandroid.logger import info, warning
 from pythonforandroid.recipe import CythonRecipe, IncludedFilesBehaviour
 
 
@@ -27,29 +27,22 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
     # toolchain rather than through the target interpreter.
     call_hostpython_via_targetpython = False
 
-    def prebuild_arch(self, arch):
-        """Put numpy and Cython inside p4a's own host interpreter.
-
-        Cythonisation and setup.py are run by hostpython3, not by the
-        runner's Python, so installing numpy on the runner does not help:
-        the .pyx files cimport numpy and setup.py imports it at module
-        level, and hostpython3 has neither.
-        """
-        super().prebuild_arch(arch)
-
-        hostpython = sh.Command(self.ctx.hostpython)
-        for args in (('-m', 'ensurepip', '--upgrade'),
-                     ('-m', 'pip', 'install', '--upgrade',
-                      'setuptools', 'wheel', 'cython>=3.0.8', 'numpy')):
-            try:
-                shprint(hostpython, *args, _env=self.get_recipe_env(arch))
-            except Exception as exc:
-                # ensurepip is a no-op when pip is already present; only the
-                # install failing actually matters, and the build will say so.
-                warning('mcgame: hostpython %s failed: %s' % (args[1], exc))
-
     def get_recipe_env(self, arch, **kwargs):
         env = super().get_recipe_env(arch, **kwargs)
+
+        # Cythonisation runs under hostpython3, which has no numpy of its
+        # own, so `cimport numpy` fails there. p4a itself runs on the
+        # runner's interpreter, which does have numpy, and both are x86_64
+        # CPython - so point hostpython3 at that copy rather than trying to
+        # install into it (it may have no pip).
+        host_numpy = self._host_numpy_path()
+        if host_numpy:
+            env['PYTHONPATH'] = os.pathsep.join(
+                [host_numpy] + [p for p in [env.get('PYTHONPATH')] if p])
+            info('mcgame: hostpython numpy via PYTHONPATH=%s' % host_numpy)
+        else:
+            warning('mcgame: numpy not importable from the build host; '
+                    'cimport numpy will fail')
 
         includes = self._numpy_includes(arch)
         if includes:
@@ -61,6 +54,14 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
                     'numpy will fail to compile')
 
         return env
+
+    def _host_numpy_path(self):
+        """site-packages of the numpy that p4a itself imports, if any."""
+        try:
+            import numpy
+        except ImportError:
+            return None
+        return dirname(dirname(numpy.__file__))
 
     def _numpy_includes(self, arch):
         """Locate the numpy headers built for this ABI.
