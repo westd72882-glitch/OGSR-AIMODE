@@ -155,17 +155,34 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
             *self.PURE_PYTHON_REQUIREMENTS
         )
 
-        # p4a looks for a path named after the *distribution*, but a wheel
-        # unpacks under its import name - Kivy-Garden installs as
-        # kivy_garden, so the check never matches and the stage runs anyway.
-        # Leave a marker under the distribution name for those cases; a
-        # hyphenated name is not importable, so it cannot shadow anything.
+        self._mark_present(target)
+
+    def _mark_present(self, target):
+        """Make p4a's presence check succeed for every requirement.
+
+        p4a compares the *distribution* name against a path in site-packages,
+        but a wheel unpacks under its import name and the two rarely agree on
+        case or separator: Pygments installs as pygments, Kivy-Garden as
+        kivy_garden. The check then never matches, the module stays in the
+        list, and p4a builds the virtualenv whose pip is broken here.
+
+        So leave an empty marker for whichever spelling is missing. None of
+        them can shadow a real import: the genuine package is already there
+        under its own name, and hyphenated names are not importable at all.
+        """
+        def variants(name):
+            lowered = name.lower()
+            return {name, lowered,
+                    name.replace('-', '_'), lowered.replace('-', '_'),
+                    name.replace('_', '-'), lowered.replace('_', '-')}
+
         for requirement in self.PURE_PYTHON_REQUIREMENTS:
-            if any(os.path.exists(join(target, requirement + suffix))
-                   for suffix in ('', '.py', '.pyc', '.so')):
-                continue
-            os.makedirs(join(target, requirement), exist_ok=True)
-            info('mcgame: marked %s as present for p4a' % requirement)
+            for spelling in sorted(variants(requirement)):
+                if any(os.path.exists(join(target, spelling + suffix))
+                       for suffix in ('', '.py', '.pyc', '.so')):
+                    continue
+                os.makedirs(join(target, spelling), exist_ok=True)
+                info('mcgame: marked %s as present' % spelling)
 
     def get_recipe_env(self, arch, **kwargs):
         env = super().get_recipe_env(arch, **kwargs)

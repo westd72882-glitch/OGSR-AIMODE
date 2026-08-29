@@ -135,7 +135,8 @@ jobs:
               echo
               echo '## Cythonise + recipe'
               echo '```'
-              grep -nE "mcgame:|Cythonize |first build failed" "$log" 2>/dev/null | tail -n 15
+              grep -nE "don.t have recipes|were not found as recipes" "$log" 2>/dev/null | tail -n 3
+              grep -nE "mcgame: marked|mcgame: (installing|pre-installing)" "$log" 2>/dev/null | tail -n 8
               d=$(find android-port/.buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
               [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
               echo '```'
