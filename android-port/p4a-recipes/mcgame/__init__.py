@@ -47,25 +47,32 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
 
         return env
 
-    def _numpy_includes(self, arch):
-        """Locate the numpy headers built for this ABI.
+    # Written by numpy's build, absent from its source tree. A candidate
+    # include directory without these is the unbuilt copy and must not be
+    # passed to the compiler - it shadows the real one and the build dies
+    # on "unknown type name 'npy_uint64'".
+    GENERATED_HEADERS = ('_numpyconfig.h', '__multiarray_api.h')
 
-        The directory moved from numpy/core to numpy/_core in numpy 2, and
-        p4a stages it under either the install dir or the build dir
-        depending on version, so probe for whichever exists.
-        """
+    def _numpy_includes(self, arch):
+        """Include directories of the numpy actually built for this ABI."""
         roots = [self.ctx.get_python_install_dir(arch.arch)]
         try:
             roots.append(self.get_recipe('numpy', self.ctx).get_build_dir(arch.arch))
         except Exception:
             pass
 
-        found = []
+        candidates = []
         for root in roots:
             for pattern in ('numpy/_core/include', 'numpy/core/include',
                             '**/numpy/_core/include', '**/numpy/core/include'):
-                found.extend(glob.glob(join(root, pattern), recursive=True))
-        return sorted(set(found))
+                candidates.extend(glob.glob(join(root, pattern), recursive=True))
 
+        complete = [path for path in sorted(set(candidates))
+                    if all(os.path.exists(join(path, 'numpy', header))
+                           for header in self.GENERATED_HEADERS)]
+        if complete:
+            return complete
 
-recipe = MCGameRecipe()
+        warning('mcgame: no numpy include dir carries %s; falling back to '
+                'every candidate' % ', '.join(self.GENERATED_HEADERS))
+        return sorted(set(candidates))
