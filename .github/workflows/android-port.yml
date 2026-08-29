@@ -3,6 +3,10 @@ name: Android Port
 # Google's download servers are unreachable from the dev container, so the
 # Android toolchain only exists on the runner. Everything APK-shaped is
 # built here.
+concurrency:
+  group: android-port
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
@@ -30,7 +34,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             git zip unzip autoconf automake libtool libtool-bin pkg-config \
-            zlib1g-dev libncurses5-dev libffi-dev libssl-dev ccache
+            zlib1g-dev libncurses5-dev libffi-dev libssl-dev ccache \
+            libltdl-dev m4 gettext
           python -m pip install --upgrade pip
           pip install buildozer cython==0.29.36 setuptools wheel
 
