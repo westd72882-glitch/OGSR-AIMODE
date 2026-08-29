@@ -52,6 +52,41 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
         if stale:
             info('mcgame: removed %d stale generated C file(s)' % len(stale))
 
+        # This recipe builds before p4a installs the recipe-less pure Python
+        # requirements, so it is the last chance to fix the pip that step needs.
+        self._repair_hostpython_pip()
+
+    def _repair_hostpython_pip(self):
+        """Reinstall pip inside hostpython3 when its own copy is unusable.
+
+        The pip that ships in p4a's host interpreter is inconsistent here -
+        importing it raises
+
+            ImportError: cannot import name 'BuildDependencyInstallError'
+                         from 'pip._internal.exceptions'
+
+        and p4a needs a working one to install the pure-Python requirements
+        that have no recipe (nbtlib, requests and friends). ensurepip
+        bootstraps from a bundled wheel and does not import the installed
+        pip, so it can replace a broken one - but only over a clean slate,
+        hence removing the existing package first.
+        """
+        hostpython = sh.Command(self.ctx.hostpython)
+        try:
+            shprint(hostpython, '-c', 'import pip._internal.cli.main')
+            return
+        except Exception:
+            info('mcgame: hostpython pip is broken, reinstalling it')
+
+        root = dirname(dirname(str(self.ctx.hostpython)))
+        for site in glob.glob(join(root, 'lib', 'python*', 'site-packages')):
+            for leftover in glob.glob(join(site, 'pip')) + glob.glob(join(site, 'pip-*')):
+                shutil.rmtree(leftover, ignore_errors=True)
+                info('mcgame: removed %s' % leftover)
+
+        shprint(hostpython, '-m', 'ensurepip', '--upgrade', '--default-pip')
+        shprint(hostpython, '-c', 'import pip._internal.cli.main; print("pip repaired")')
+
     def install_python_package(self, arch, name=None, env=None, is_dir=True):
         """Install the built package without pip.
 
