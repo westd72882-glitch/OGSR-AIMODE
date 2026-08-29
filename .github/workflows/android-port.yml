@@ -126,7 +126,14 @@ jobs:
           d=$(find .buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
           [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
 
-          # Unfiltered, and last: the second setup.py run fails for a reason
-          # none of the greps above match.
-          echo "================ END OF BUILD OUTPUT ================"
-          tail -n 45 build-output.log 2>/dev/null || echo "no build output"
+          # Buildozer closes with a ~40 line environment dump, so a plain
+          # tail shows only that. Anchor on it and print what came before -
+          # that is where the real error sits.
+          echo "================ ERROR BEFORE THE ENV DUMP ================"
+          end=$(grep -n "ENVIRONMENT:" build-output.log 2>/dev/null | tail -1 | cut -d: -f1)
+          if [ -n "$end" ]; then
+            start=$((end > 90 ? end - 90 : 1))
+            sed -n "${start},${end}p" build-output.log
+          else
+            tail -n 60 build-output.log
+          fi
