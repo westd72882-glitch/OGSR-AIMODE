@@ -1,23 +1,27 @@
 [app]
-title = MC Python Toolchain Check
+title = Minecraft Python Edition
 package.name = mcpython
 package.domain = org.mcpython
 
 source.dir = .
-source.include_exts = py,pyx,pxd,png,jpg,gif,ogg,txt,mclevel
+source.include_exts = py,png,jpg,gif,ogg,txt,mclevel
 
-version = 0.1
+# game/ is built by the mcgame recipe and installed into site-packages;
+# packaging it again as app data would duplicate 23 MB into the APK.
+source.exclude_dirs = game,p4a-recipes,bin,.buildozer
 
-# The dependencies the real port needs. numpy and pillow are the risky
-# ones - they compile native code for the target ABI.
-requirements = python3,kivy,numpy,pillow,nbtlib
+version = 20100223
+
+# mcgame is the local recipe that cythonises the game's 33 .pyx modules.
+requirements = python3,kivy,numpy,pillow,nbtlib,mcgame
+
+p4a.local_recipes = ./p4a-recipes
 
 orientation = landscape
 fullscreen = 1
 
 # Android options must live in [app]; buildozer ignores an [app:android]
-# section, which silently drops accept_sdk_license and fails the build at
-# "Aidl not found".
+# section, which silently drops accept_sdk_license.
 android.api = 33
 android.minapi = 24
 android.ndk_api = 24
