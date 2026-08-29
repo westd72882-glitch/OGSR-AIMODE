@@ -1,7 +1,7 @@
-# Build 30 — failure
+# Build 31 — failure
 
-commit: c3d2507b04ef98454713b8175255dfa1e079d305
-run: https://github.com/westd72882-glitch/OGSR-AIMODE/actions/runs/33278392621
+commit: 16e0c61dac213310e9a2888fce36edec4425705b
+run: https://github.com/westd72882-glitch/OGSR-AIMODE/actions/runs/33278741501
 
 ## Compile errors
 ```
@@ -11,25 +11,18 @@ run: https://github.com/westd72882-glitch/OGSR-AIMODE/actions/runs/33278392621
 
 ## Cythonise + recipe
 ```
-702:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/generator/LevelGenerator.pyx
-705:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/generator/noise/NoiseGeneratorOctaves.pyx
-708:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/generator/noise/NoiseGeneratorDistort.pyx
-711:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/generator/noise/NoiseGeneratorPerlin.pyx
-714:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/block/BlockFire.pyx
-717:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/block/BlockFluid.pyx
-720:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/block/BlockFlowing.pyx
-723:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/level/block/Block.pyx
-726:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/entity/Entity.pyx
-729:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/entity/EntityLiving.pyx
-732:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/entity/EntityCreature.pyx
-735:[1m[INFO][0m:    Cythonize mc/net/minecraft/game/physics/AxisAlignedBB.pyx
-907:[1m[INFO][0m:    mcgame: numpy headers at /home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/build/python-installs/mcpython/arm64-v8a/numpy/_core/include
+195:[1m[INFO][0m:    [1m[94mThe requirements (certifi, chardet, filetype, idna, nbtlib, requests, six, urllib3) were not found as recipes, they will be installed with pip.[0m
+1772:[1m[INFO][0m:    The requirements (https://files.pythonhosted.org/packages/29/cd/2b812ce5e888f1ce69a5350281e58aab07ae64a958ecae8912f30865718e/charset_normalizer-3.5.1-cp314-cp314-android_24_arm64_v8a.whl) don't have recipes, attempting to install them with pip
 1683:[1m[INFO][0m:    mcgame: installing /home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/build/other_builds/mcgame/arm64-v8a__ndk_target_24/mcgame/build/lib.linux-x86_64-cpython-314 into /home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/build/python-installs/mcpython/arm64-v8a
 1684:[1m[INFO][0m:    mcgame: pre-installing pure Python requirements into /home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/build/python-installs/mcpython/arm64-v8a
+1730:[1m[INFO][0m:    mcgame: marked charset-normalizer as present
+1731:[1m[INFO][0m:    mcgame: marked Kivy_Garden as present
+1732:[1m[INFO][0m:    mcgame: marked kivy-garden as present
+1733:[1m[INFO][0m:    mcgame: marked kivy_garden as present
 pyx: 66  c: 33
 ```
 
-## Failure (log has 2021 lines)
+## Failure (log has 2025 lines)
 ```
 
   RAN: /usr/bin/bash -c 'source venv/bin/activate && pip install -U pip'
