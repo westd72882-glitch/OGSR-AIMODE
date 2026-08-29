@@ -9,6 +9,7 @@ ABI and installs the `mc` package into the app's site-packages instead.
 import glob
 import os
 import shutil
+import sys
 from os.path import dirname, isdir, join
 
 import sh
@@ -122,6 +123,36 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
                 shutil.copytree(source, destination, dirs_exist_ok=True)
             else:
                 shutil.copy2(source, destination)
+
+        self._preinstall_pure_requirements(arch)
+
+    # Pulled in transitively by kivy (via kivy-garden -> requests) and by
+    # nbtlib. Every one of them is pure Python and ships a py3-none-any
+    # wheel, but p4a hands them to pip with the Android cross-compiler set,
+    # which builds wheels tagged android_24_arm64_v8a that the host pip then
+    # refuses to install:
+    #
+    #   ERROR: charset_normalizer-...-android_24_arm64_v8a.whl is not a
+    #   supported wheel on this platform.
+    #
+    # p4a skips any module already present in the target site-packages, so
+    # placing the pure wheels there first avoids that path entirely.
+    PURE_PYTHON_REQUIREMENTS = (
+        'certifi', 'chardet', 'charset_normalizer', 'filetype', 'idna',
+        'nbtlib', 'requests', 'six', 'urllib3',
+    )
+
+    def _preinstall_pure_requirements(self, arch):
+        target = self.ctx.get_python_install_dir(arch.arch)
+        info('mcgame: pre-installing pure Python requirements into %s' % target)
+        shprint(
+            sh.Command(sys.executable), '-m', 'pip', 'install',
+            '--target', target, '--no-deps', '--upgrade',
+            '--only-binary=:all:', '--platform', 'any',
+            '--python-version', self.python_major_minor_version,
+            '--implementation', 'py',
+            *self.PURE_PYTHON_REQUIREMENTS
+        )
 
     def get_recipe_env(self, arch, **kwargs):
         env = super().get_recipe_env(arch, **kwargs)
