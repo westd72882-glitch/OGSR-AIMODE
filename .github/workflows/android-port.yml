@@ -109,6 +109,9 @@ jobs:
           echo "================ COMPILE ERRORS (with context) ================"
           grep -n -A 18 "Error compiling Cython file" build-output.log 2>/dev/null \
             | head -n 80 || true
+          echo "================ LAST TRACEBACKS ================"
+          grep -n -A 14 "Traceback (most recent call last)" build-output.log \
+            2>/dev/null | tail -n 60 || true
           echo "================ OTHER ERRORS ================"
           grep -inE "^.*(mcgame:|error:|fatal error|traceback|no module named|undeclared|undefined reference)" \
             build-output.log 2>/dev/null | tail -n 30 || true
