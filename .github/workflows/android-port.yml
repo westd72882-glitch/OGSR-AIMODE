@@ -45,7 +45,12 @@ jobs:
           # misreads self.__flow as the base class's and rejects the call.
           # numpy is needed on the host too: setup.py imports it and the .pyx
           # files cimport its headers during cythonisation.
-          pip install buildozer 'cython>=3.0.8' numpy setuptools wheel
+          # numpy must match the version p4a builds for the target: since
+          # Cython 3.1 dropped its bundled numpy pxd, the installed numpy
+          # decides the shape of the generated C, and compiling that against
+          # a different numpy's headers fails on the 2.x descriptor struct
+          # ("no member named 'subarray'").
+          pip install buildozer 'cython>=3.0.8' 'numpy==2.3.0' setuptools wheel
 
       - name: Restore buildozer state
         id: cache
