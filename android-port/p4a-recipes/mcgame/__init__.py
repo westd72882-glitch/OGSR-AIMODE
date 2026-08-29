@@ -30,22 +30,14 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
     def get_recipe_env(self, arch, **kwargs):
         env = super().get_recipe_env(arch, **kwargs)
 
-        # Cythonisation runs under hostpython3, which has no numpy of its
-        # own, so `cimport numpy` fails there. p4a itself runs on the
-        # runner's interpreter, which does have numpy, and both are x86_64
-        # CPython - so point hostpython3 at that copy rather than trying to
-        # install into it (it may have no pip).
-        host_numpy = self._host_numpy_path()
-        if host_numpy:
-            env['PYTHONPATH'] = os.pathsep.join(
-                [host_numpy] + [p for p in [env.get('PYTHONPATH')] if p])
-            info('mcgame: hostpython numpy via PYTHONPATH=%s' % host_numpy)
-        else:
-            warning('mcgame: numpy not importable from the build host; '
-                    'cimport numpy will fail')
-
+        # Sharing the runner's numpy over PYTHONPATH does not work: its C
+        # extension is built for a different CPython than hostpython3, which
+        # fails with "No module named numpy._core._multiarray_umath". Instead
+        # setup.py goes through mcgame_setup_compat, which needs no numpy
+        # import at all - only the header directory, passed here.
         includes = self._numpy_includes(arch)
         if includes:
+            env['MCGAME_NUMPY_INCLUDE'] = includes[0]
             env['CFLAGS'] = env.get('CFLAGS', '') + ''.join(
                 ' -I' + path for path in includes)
             info('mcgame: numpy headers at %s' % ', '.join(includes))
@@ -54,14 +46,6 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
                     'numpy will fail to compile')
 
         return env
-
-    def _host_numpy_path(self):
-        """site-packages of the numpy that p4a itself imports, if any."""
-        try:
-            import numpy
-        except ImportError:
-            return None
-        return dirname(dirname(numpy.__file__))
 
     def _numpy_includes(self, arch):
         """Locate the numpy headers built for this ABI.

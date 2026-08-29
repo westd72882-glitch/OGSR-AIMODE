@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
-from Cython.Build import cythonize
+from mcgame_setup_compat import cythonize
 from glob import glob
 
-import numpy
+from mcgame_setup_compat import numpy
 
 flags = {'define_macros': [('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]}
 
