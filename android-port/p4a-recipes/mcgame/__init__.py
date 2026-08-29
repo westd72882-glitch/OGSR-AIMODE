@@ -138,8 +138,9 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
     # p4a skips any module already present in the target site-packages, so
     # placing the pure wheels there first avoids that path entirely.
     PURE_PYTHON_REQUIREMENTS = (
-        'certifi', 'chardet', 'charset_normalizer', 'filetype', 'idna',
-        'nbtlib', 'requests', 'six', 'urllib3',
+        'certifi', 'chardet', 'charset_normalizer', 'docutils', 'filetype',
+        'idna', 'Kivy-Garden', 'nbtlib', 'pygments', 'requests', 'six',
+        'urllib3',
     )
 
     def _preinstall_pure_requirements(self, arch):
@@ -153,6 +154,18 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
             '--implementation', 'py',
             *self.PURE_PYTHON_REQUIREMENTS
         )
+
+        # p4a looks for a path named after the *distribution*, but a wheel
+        # unpacks under its import name - Kivy-Garden installs as
+        # kivy_garden, so the check never matches and the stage runs anyway.
+        # Leave a marker under the distribution name for those cases; a
+        # hyphenated name is not importable, so it cannot shadow anything.
+        for requirement in self.PURE_PYTHON_REQUIREMENTS:
+            if any(os.path.exists(join(target, requirement + suffix))
+                   for suffix in ('', '.py', '.pyc', '.so')):
+                continue
+            os.makedirs(join(target, requirement), exist_ok=True)
+            info('mcgame: marked %s as present for p4a' % requirement)
 
     def get_recipe_env(self, arch, **kwargs):
         env = super().get_recipe_env(arch, **kwargs)
