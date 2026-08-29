@@ -58,16 +58,25 @@ jobs:
           set -o pipefail
           buildozer -v android debug 2>&1 | tee build-output.log
 
+      # Runs before the diagnostics below so its ~20s of tar output cannot
+      # push the failure summary out of the log tail.
+      - name: Save buildozer state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.buildozer
+            android-port/.buildozer
+          key: buildozer-${{ runner.os }}-${{ github.run_number }}
+
       - name: Name the build
         if: success()
         id: naming
+        working-directory: android-port
         run: |
-          apk=$(ls android-port/bin/*.apk | head -1)
-          echo "apk=$apk" >> "$GITHUB_OUTPUT"
+          apk=$(ls bin/*.apk | head -1)
           echo "size=$(du -h "$apk" | cut -f1)" >> "$GITHUB_OUTPUT"
 
-      # Published as a release rather than an artifact: the artifact quota
-      # on this account is used up, and releases do not draw on it.
       - name: Publish APK to Releases
         if: success()
         uses: softprops/action-gh-release@v2
@@ -86,8 +95,8 @@ jobs:
           files: android-port/bin/*.apk
           fail_on_unmatched_files: true
 
-      # Keep this last: the job log is read from the tail, so the failure
-      # has to be the final thing printed or it scrolls out of reach.
+      # Must stay the very last step: the job log is read from its tail, so
+      # anything after this buries the failure again.
       - name: Failure summary
         if: failure()
         working-directory: android-port
@@ -98,16 +107,3 @@ jobs:
           echo "================ OTHER ERRORS ================"
           grep -inE "^.*(error:|fatal error|traceback|no module named|undeclared|undefined reference)" \
             build-output.log 2>/dev/null | tail -n 30 || true
-          echo "================ LAST 40 LINES ================"
-          tail -n 40 build-output.log 2>/dev/null || echo "no build output captured"
-
-      # Bank the toolchain even when the build failed, so the next attempt
-      # does not spend 14 minutes rebuilding Python, numpy and SDL2.
-      - name: Save buildozer state
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.buildozer
-            android-port/.buildozer
-          key: buildozer-${{ runner.os }}-${{ github.run_number }}
