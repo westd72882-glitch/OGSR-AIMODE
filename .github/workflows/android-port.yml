@@ -42,13 +42,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install buildozer cython==0.29.36 setuptools wheel
 
-      - name: Cache buildozer state
-        uses: actions/cache@v4
+      - name: Restore buildozer state
+        id: cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.buildozer
             android-port/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('android-port/buildozer.spec') }}
+          key: buildozer-${{ runner.os }}-${{ github.run_number }}
           restore-keys: buildozer-${{ runner.os }}-
 
       - name: Build APK
@@ -91,8 +92,22 @@ jobs:
         if: failure()
         working-directory: android-port
         run: |
-          echo "================ LAST 70 LINES ================"
-          tail -n 70 build-output.log 2>/dev/null || echo "no build output captured"
-          echo "================ ERROR LINES ================"
-          grep -inE "error|failed|traceback|not found|no module|cannot|exception" \
-            build-output.log 2>/dev/null | tail -n 25 || true
+          echo "================ COMPILE ERRORS (with context) ================"
+          grep -n -A 18 "Error compiling Cython file" build-output.log 2>/dev/null \
+            | head -n 80 || true
+          echo "================ OTHER ERRORS ================"
+          grep -inE "^.*(error:|fatal error|traceback|no module named|undeclared|undefined reference)" \
+            build-output.log 2>/dev/null | tail -n 30 || true
+          echo "================ LAST 40 LINES ================"
+          tail -n 40 build-output.log 2>/dev/null || echo "no build output captured"
+
+      # Bank the toolchain even when the build failed, so the next attempt
+      # does not spend 14 minutes rebuilding Python, numpy and SDL2.
+      - name: Save buildozer state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.buildozer
+            android-port/.buildozer
+          key: buildozer-${{ runner.os }}-${{ github.run_number }}
