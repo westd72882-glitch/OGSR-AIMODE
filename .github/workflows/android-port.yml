@@ -111,28 +111,21 @@ jobs:
         if: failure()
         working-directory: android-port
         run: |
-          echo "================ DID P4A CYTHONISE? ================"
-          grep -n -A 6 "Running cython where appropriate\|Cythonize \|Trying first build" \
-            build-output.log 2>/dev/null | head -n 60 || true
-          echo "--- .pyx and .c present in the recipe build dir ---"
+          echo "================ COMPILE ERRORS ================"
+          grep -n -A 14 "Error compiling Cython file" build-output.log 2>/dev/null \
+            | head -n 50 || true
+          grep -inE "(fatal error|undeclared|undefined reference|no such file)" \
+            build-output.log 2>/dev/null | tail -n 10 || true
+
+          # Kept last: the job log is read from its tail, so whatever matters
+          # most has to be printed at the very end.
+          echo "================ CYTHONISE STEP ================"
+          grep -n -A 4 "Running cython where appropriate\|Cythonize \|first build failed\|skipping manual" \
+            build-output.log 2>/dev/null | tail -n 40 || true
+          echo "--- sources present in the recipe build dir ---"
           d=$(find .buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
           echo "dir: $d"
-          [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
-          echo "================ WHAT CYTHONISED THIS ================"
-          python3 -c "import numpy, Cython, sys; print('python', sys.version); print('numpy', numpy.__version__, numpy.__file__); print('cython', Cython.__version__)" || true
-          echo "--- the offending generated lines ---"
-          c=$(find .buildozer -name JavaUtils.c 2>/dev/null | head -1)
-          echo "file: $c"
-          [ -n "$c" ] && sed -n '23820,23835p' "$c"
-          echo "--- does it use the accessor or the raw field? ---"
-          [ -n "$c" ] && grep -c "PyDataType_SUBARRAY" "$c"
-          [ -n "$c" ] && grep -n -- "->subarray" "$c" | head -5
-          echo "================ COMPILE ERRORS (with context) ================"
-          grep -n -A 18 "Error compiling Cython file" build-output.log 2>/dev/null \
-            | head -n 80 || true
-          echo "================ LAST TRACEBACKS ================"
-          grep -n -A 14 "Traceback (most recent call last)" build-output.log \
-            2>/dev/null | tail -n 60 || true
-          echo "================ OTHER ERRORS ================"
-          grep -inE "^.*(mcgame:|error:|fatal error|traceback|no module named|undeclared|undefined reference)" \
-            build-output.log 2>/dev/null | tail -n 30 || true
+          if [ -n "$d" ]; then
+            echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
+            echo "top level:"; ls -1 "$d" | head -20
+          fi
