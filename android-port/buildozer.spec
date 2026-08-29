@@ -8,14 +8,16 @@ source.include_exts = py,pyx,pxd,png,jpg,gif,ogg,txt,mclevel
 
 version = 0.1
 
-# The dependencies the real port needs. Cython and numpy are the risky
+# The dependencies the real port needs. numpy and pillow are the risky
 # ones - they compile native code for the target ABI.
 requirements = python3,kivy,numpy,pillow,nbtlib
 
 orientation = landscape
 fullscreen = 1
 
-[app:android]
+# Android options must live in [app]; buildozer ignores an [app:android]
+# section, which silently drops accept_sdk_license and fails the build at
+# "Aidl not found".
 android.api = 33
 android.minapi = 21
 android.ndk_api = 21

@@ -68,6 +68,6 @@ jobs:
         with:
           name: buildozer-log
           path: |
-            android-port/.buildozer/android/platform/build-*/build.log
             android-port/.buildozer/**/*.log
+            ~/.buildozer/**/*.log
           if-no-files-found: ignore
