@@ -19,8 +19,8 @@ fullscreen = 1
 # section, which silently drops accept_sdk_license and fails the build at
 # "Aidl not found".
 android.api = 33
-android.minapi = 21
-android.ndk_api = 21
+android.minapi = 24
+android.ndk_api = 24
 android.archs = arm64-v8a
 android.accept_sdk_license = True
 android.allow_backup = True
