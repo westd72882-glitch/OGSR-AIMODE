@@ -34,9 +34,20 @@ def initialize(size=None):
         framebuffer_size[:] = [int(size[0]), int(size[1])]
 
     egl = ctypes.CDLL('libEGL.so')
+    _lib.set_getprocaddress.argtypes = [c_void_p]
     _lib.set_getprocaddress(ctypes.cast(egl.eglGetProcAddress, c_void_p))
+    _lib.set_getmainfbsize.argtypes = [_FB_SIZE_CB]
     _lib.set_getmainfbsize(_fb_size_callback)
-    _lib.initialize_gl4es()
+
+    # Absent when gl4es was built with its init constructor left on, in
+    # which case it initialised itself at dlopen and there is nothing to
+    # call. The recipe disables that, but a binary built either way should
+    # not take the app down here.
+    try:
+        _lib.initialize_gl4es()
+    except AttributeError:
+        MISSING.append('initialize_gl4es')
+
     INITIALIZED = True
     return True
 

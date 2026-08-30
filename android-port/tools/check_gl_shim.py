@@ -1,4 +1,5 @@
-"""Import the generated GL shim off-device, against a stub library.
+"""Import the shim off-device and check the names the game and the
+controls actually reach for.
 
 pyglet/gl.py is 340 lines of generated declarations that nothing on this
 machine can exercise: there is no gl4es here, and no GL context. But the
@@ -57,9 +58,36 @@ def main():
             print('gl_info advertises a capability gl4es cannot serve')
             return 1
 
+        bad = unresolved_input_symbols()
+        if bad:
+            print('android_input refers to undefined symbols: %s'
+                  % ', '.join(bad))
+            return 1
+
         print('shim imports; %d names defined, %d entry points stubbed out'
               % (len(used_names()), len(gl.MISSING)))
+        print('touch controls resolve every key and mouse symbol they use')
         return 0
+
+
+def unresolved_input_symbols():
+    """Names android_input.py takes from the key and mouse tables.
+
+    The controls are built out of pyglet symbols so they can be handed
+    straight to the game later, which means a typo here is a crash on the
+    device rather than anything Python notices at import.
+    """
+    import re
+
+    from pyglet.window import key, mouse
+
+    source = open(os.path.join(ROOT, 'android_input.py')).read()
+    tables = {'key': key, 'mouse': mouse}
+    bad = []
+    for module, name in re.findall(r'\b(key|mouse)\.([A-Z_][A-Z_0-9]*)\b', source):
+        if not hasattr(tables[module], name):
+            bad.append('%s.%s' % (module, name))
+    return sorted(set(bad))
 
 
 if __name__ == '__main__':

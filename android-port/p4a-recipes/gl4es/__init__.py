@@ -46,6 +46,12 @@ class GL4ESRecipe(Recipe):
                 '-DNOX11=ON',
                 '-DNOEGL=ON',
                 '-DUSE_ANDROID_LOG=ON',
+                # Without this initialize_gl4es is not exported at all: it
+                # gets __attribute__((constructor)) and runs at dlopen,
+                # which is too early. Under NOEGL gl4es needs to be handed
+                # a GLES entry-point resolver first, and only the caller
+                # knows when the context is current.
+                '-DNO_INIT_CONSTRUCTOR=ON',
                 '-DCMAKE_BUILD_TYPE=Release',
                 _env=env)
             shprint(sh.Command('make'), '-j', str(multiprocessing.cpu_count()),

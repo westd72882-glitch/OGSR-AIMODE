@@ -17,6 +17,7 @@ import traceback
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.window import Window
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 
@@ -151,6 +152,21 @@ PROBES = (
 )
 
 
+#: pyglet symbols read back as names, so the controls preview says "W"
+#: rather than 119. Built lazily: importing the shim at module level would
+#: put a GL binding in the way of the report it is meant to produce.
+_KEY_NAMES = {}
+
+
+def _load_key_names():
+    from pyglet.window import key, mouse
+    for name in dir(key):
+        if not name.startswith('_') and isinstance(getattr(key, name), int):
+            _KEY_NAMES.setdefault(getattr(key, name), name)
+    _KEY_NAMES[mouse.LEFT] = 'BREAK'
+    _KEY_NAMES[mouse.RIGHT] = 'PLACE'
+
+
 class PortCheckApp(App):
     def build(self):
         Window.clearcolor = (0.06, 0.06, 0.08, 1)
@@ -167,12 +183,18 @@ class PortCheckApp(App):
         view = ScrollView()
         view.add_widget(self.label)
 
+        # The report and the controls preview swap places inside this, so
+        # neither has to know the other exists.
+        self.container = FloatLayout()
+        self.container.add_widget(view)
+        self.root_view = self.container
+
         self.queue = list(PROBES)
         self.pending = None
         # One probe per tick, and only after the frame that announced it has
         # been drawn - otherwise a segfault erases the evidence.
         Clock.schedule_interval(self._step, 0.25)
-        return view
+        return self.container
 
     def _show(self):
         text = '\n'.join(self.lines)
@@ -200,13 +222,64 @@ class PortCheckApp(App):
 
         if not self.queue:
             self.lines.append('')
-            self.lines.append('all probes finished')
+            self.lines.append('all probes finished - touch anywhere for controls')
             self._show()
+            self._offer_controls()
             return False
 
         self.pending = self.queue.pop(0)
         self.lines.append('%s: running...' % self.pending[0])
         self._show()
+        return True
+
+
+    def _offer_controls(self):
+        """Swap the report for the touch controls on the next touch.
+
+        The control layer does not depend on the game loop, so it can be
+        tried - and criticised - long before there is a world to walk
+        around in. Reaching it costs one touch so the report stays
+        readable until it has been read.
+        """
+        self.root_view.bind(on_touch_down=lambda *_: self._show_controls())
+
+    def _show_controls(self):
+        if getattr(self, '_controls_shown', False):
+            return False
+        self._controls_shown = True
+
+        from android_input import TouchControls
+
+        _load_key_names()
+
+        readout = Label(text='move with the left half, look with the right',
+                        font_size='14sp', size_hint=(1, None), height='40dp',
+                        pos_hint={'top': 1})
+
+        def describe():
+            names = sorted(_KEY_NAMES.get(s, str(s)) for s in controls.held_keys)
+            readout.text = 'held: %s   look: %+d %+d   last: %s' % (
+                ', '.join(names) or '-', state['dx'], state['dy'],
+                state['last'])
+
+        state = {'dx': 0, 'dy': 0, 'last': '-'}
+
+        def looked(dx, dy):
+            state['dx'], state['dy'] = int(dx), int(dy)
+            describe()
+
+        def pressed(symbol, is_down):
+            state['last'] = '%s %s' % (_KEY_NAMES.get(symbol, symbol),
+                                       'down' if is_down else 'up')
+            describe()
+
+        controls = TouchControls(on_look=looked, on_button=pressed)
+        layout = FloatLayout()
+        layout.add_widget(controls)
+        layout.add_widget(readout)
+
+        self.container.clear_widgets()
+        self.container.add_widget(layout)
         return True
 
 
