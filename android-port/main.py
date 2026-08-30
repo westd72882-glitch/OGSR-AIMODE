@@ -97,6 +97,33 @@ def _probe_shim():
     return 'key.W=%d mouse.LEFT=%d' % (key.W, mouse.LEFT)
 
 
+def _probe_gl_binding():
+    """Load the GL binding without calling into GL.
+
+    Importing pyglet.gl only dlopens gl4es and resolves symbols, which is
+    all the game's Cython modules need at their own import time - and is
+    what the previous build crashed on.
+    """
+    from pyglet import gl
+    return '%d entry points missing%s' % (
+        len(gl.MISSING),
+        (': ' + ', '.join(gl.MISSING[:6])) if gl.MISSING else '')
+
+
+def _probe_gl4es():
+    """Start gl4es and ask it what it is.
+
+    Deliberately the last probe: gl4es takes over the GL state machine of
+    the context it is initialised in, so Kivy may not draw another correct
+    frame afterwards. By this point everything else is already on screen
+    and in the log file.
+    """
+    from kivy.core.window import Window as _W
+    from pyglet import gl
+    gl.initialize(size=_W.size)
+    return gl.gl_info.get_version()
+
+
 def _probe_cython():
     # One of the 33 .pyx modules. Loads a native .so linked against numpy,
     # so this is the probe most likely to take the process down outright.
@@ -117,8 +144,10 @@ PROBES = (
     ('pillow', _probe_pil),
     ('nbtlib', _probe_nbtlib),
     ('pyglet shim', _probe_shim),
+    ('pyglet gl', _probe_gl_binding),
     ('cython mc', _probe_cython),
     ('game resources', _probe_resources),
+    ('gl4es init', _probe_gl4es),
 )
 
 

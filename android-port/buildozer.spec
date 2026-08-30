@@ -22,7 +22,7 @@ android.numeric_version = 20100223
 # picks the Android wheel from PyPI and passes it on as a URL, which
 # no presence check can match, so the whole pymodules stage runs and
 # dies in its virtualenv's broken pip.
-requirements = python3,kivy,numpy,pillow,nbtlib,charset_normalizer,mcgame
+requirements = python3,kivy,numpy,pillow,nbtlib,charset_normalizer,gl4es,mcgame
 
 p4a.local_recipes = ./p4a-recipes
 
