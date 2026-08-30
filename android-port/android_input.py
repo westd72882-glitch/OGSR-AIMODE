@@ -1,226 +1,251 @@
-"""Touch controls that speak the game's own input vocabulary.
+"""Touch controls, in the game's own input vocabulary.
 
-The game is a desktop program: it reads the keyboard through
-pyglet.window.key and turns the mouse into camera movement. Rather than
-teach it about touches, this widget converts touches into exactly those
-events - key symbols from pyglet's table, mouse buttons, and relative
-motion - so it can later be wired into the window shim without the game
-knowing a phone is involved.
-
-Layout follows the two-thumb convention every mobile shooter uses:
+The game is a desktop program: it reads held keys through
+pyglet.window.key and turns relative mouse motion into camera movement.
+So rather than teach it about touches, this turns touches into exactly
+those events. Nothing here knows about a UI toolkit - it takes finger
+positions in window pixels and calls back - which is what lets the same
+logic drive the game and be drawn over its frame.
 
     +---------------------------+---------------------------+
-    |                           |          [ESC] [E]        |
-    |                           |                           |
-    |     move: virtual stick   |    look: drag anywhere    |
-    |                           |    tap: break block       |
-    |                           |    hold: place block      |
-    |        (O)                |                  (JUMP)   |
+    |                           |         [ESC]  [E]        |
+    |    move: virtual stick    |    look: drag anywhere    |
+    |    (appears where you     |    tap: break block       |
+    |     put your thumb)       |    hold: place block      |
+    |         (O)               |                  (JUMP)   |
     +---------------------------+---------------------------+
-
-Sizes are in dp, not pixels: the reporting device is 2000 px wide, and a
-thumb is the same size on every one of them.
 """
 
-from kivy.graphics import Color, Ellipse, Line, Rectangle
-from kivy.metrics import dp
-from kivy.uix.label import Label
-from kivy.uix.widget import Widget
+import time
 
 from pyglet.window import key, mouse
 
-#: How far the thumb must travel from where it landed before a direction
-#: counts as held. Below this the stick is centred and nothing is pressed.
-STICK_DEADZONE = dp(14)
+#: Fractions of the shorter screen edge, so the controls stay thumb-sized
+#: whatever the panel: the reporting device is 2000 px wide, and a thumb is
+#: not.
+STICK_RANGE = 0.20
+STICK_DEADZONE = 0.045
+BUTTON_SIZE = 0.20
+BUTTON_MARGIN = 0.05
 
-#: Travel at which the stick is fully deflected; also the ring's radius.
-STICK_RANGE = dp(64)
-
-#: A press on the look side shorter than this, that barely moved, is a tap
-#: (break block). Longer is a hold (place block).
+#: A press on the look side that is short and barely moved is a tap (break
+#: a block); longer is a hold (place one).
 TAP_SECONDS = 0.28
-TAP_SLOP = dp(18)
+TAP_SLOP = 0.06
 
-BUTTON_SIZE = dp(64)
-BUTTON_MARGIN = dp(18)
+#: Touch travel to camera degrees. Tuned to feel like a mouse rather than
+#: to match it: a finger crosses far less distance than a mouse does.
+LOOK_SENSITIVITY = 1.6
 
 
-class TouchControls(Widget):
-    """Turns touches into held keys, mouse buttons and look deltas.
+class TouchControls:
+    """Converts finger movement into key symbols, buttons and look deltas.
 
-    Register callbacks rather than reading state: `on_look` fires with a
-    relative delta, which is what the game's on_mouse_motion expects, and
-    holding a direction is exposed through `held_keys` the same way
-    pyglet's KeyStateHandler exposes a keyboard.
+    `on_key` receives pyglet key symbols, `on_button` pyglet mouse buttons
+    and `on_look` a relative delta shaped like on_mouse_motion's.
     """
 
-    def __init__(self, on_look=None, on_button=None, **kwargs):
-        super().__init__(**kwargs)
-        self.on_look = on_look or (lambda dx, dy: None)
+    BUTTONS = (('jump', key.SPACE), ('inventory', key.E), ('escape', key.ESCAPE))
+
+    DIRECTIONS = ((key.W, 0, 1), (key.S, 0, -1), (key.A, -1, 0), (key.D, 1, 0))
+
+    def __init__(self, width, height, on_key=None, on_button=None, on_look=None):
+        self.resize(width, height)
+        self.on_key = on_key or (lambda symbol, pressed: None)
         self.on_button = on_button or (lambda button, pressed: None)
+        self.on_look = on_look or (lambda dx, dy: None)
 
-        #: pyglet key symbols currently held, for a KeyStateHandler stand-in.
-        self.held_keys = set()
-
+        self.held = set()
+        self._fingers = {}
         self._stick_origin = None
         self._stick_thumb = None
 
-        # Drawn as widgets rather than canvas text: an unlabelled square is
-        # not a control, it is a guess.
-        self._captions = {}
-        for name, caption in (('jump', 'JUMP'), ('inventory', 'E'),
-                              ('escape', 'ESC')):
-            label = Label(text=caption, font_size='13sp', size_hint=(None, None))
-            self._captions[name] = label
-            self.add_widget(label)
+    def resize(self, width, height):
+        self.width = float(width)
+        self.height = float(height)
+        unit = min(self.width, self.height)
+        self.stick_range = unit * STICK_RANGE
+        self.stick_deadzone = unit * STICK_DEADZONE
+        self.button_size = unit * BUTTON_SIZE
+        self.button_margin = unit * BUTTON_MARGIN
+        self.tap_slop = unit * TAP_SLOP
 
-        self.bind(pos=self._redraw, size=self._redraw)
+    # -- layout ------------------------------------------------------------
 
-    # -- geometry ----------------------------------------------------------
-
-    @property
-    def _split(self):
-        """x of the line between the move half and the look half."""
-        return self.x + self.width * 0.5
-
-    def _buttons(self):
-        """Named tap targets, as (name, x, y, size) in window coordinates."""
-        right = self.right - BUTTON_MARGIN
-        top = self.top - BUTTON_MARGIN
+    def button_rects(self):
+        """(name, symbol, x, y, size), y measured from the bottom."""
+        size = self.button_size
+        right = self.width - self.button_margin - size
+        top = self.height - self.button_margin - size
         return (
-            ('jump', right - BUTTON_SIZE, self.y + BUTTON_MARGIN, BUTTON_SIZE),
-            ('inventory', right - BUTTON_SIZE, top - BUTTON_SIZE, BUTTON_SIZE),
-            ('escape', right - BUTTON_SIZE * 2.2, top - BUTTON_SIZE,
-             BUTTON_SIZE * 0.8),
+            ('jump', key.SPACE, right, self.button_margin, size),
+            ('inventory', key.E, right, top, size),
+            ('escape', key.ESCAPE, right - size * 1.25, top, size * 0.8),
         )
 
     def _button_at(self, x, y):
-        for name, bx, by, size in self._buttons():
+        for name, symbol, bx, by, size in self.button_rects():
             if bx <= x <= bx + size and by <= y <= by + size:
-                return name
+                return symbol
         return None
 
-    # -- touch handling ----------------------------------------------------
+    def _resting_stick(self):
+        offset = self.stick_range + self.button_margin
+        return (offset, offset)
 
-    def on_touch_down(self, touch):
-        if not self.collide_point(*touch.pos):
-            return False
+    # -- input -------------------------------------------------------------
 
-        button = self._button_at(*touch.pos)
-        if button:
-            touch.ud['role'] = 'button'
-            touch.ud['button'] = button
-            self._press_button(button, True)
-            self._redraw()
-            return True
+    def finger_down(self, finger, x, y):
+        symbol = self._button_at(x, y)
+        if symbol is not None:
+            self._fingers[finger] = ('button', symbol)
+            self._press(symbol, True)
+            return
 
-        if touch.x < self._split:
-            touch.ud['role'] = 'move'
-            self._stick_origin = touch.pos
-            self._stick_thumb = touch.pos
-            self._redraw()
-            return True
+        if x < self.width * 0.5:
+            self._fingers[finger] = ('move', None)
+            self._stick_origin = (x, y)
+            self._stick_thumb = (x, y)
+            return
 
-        touch.ud['role'] = 'look'
-        touch.ud['start'] = touch.pos
-        touch.ud['time'] = touch.time_start
-        touch.ud['moved'] = 0.0
-        return True
+        self._fingers[finger] = ('look', {'time': time.monotonic(), 'moved': 0.0})
 
-    def on_touch_move(self, touch):
-        role = touch.ud.get('role')
+    def finger_move(self, finger, x, y, dx, dy):
+        role, extra = self._fingers.get(finger, (None, None))
         if role == 'move':
-            self._stick_thumb = touch.pos
+            self._stick_thumb = (x, y)
             self._update_stick()
-            self._redraw()
-            return True
-        if role == 'look':
-            touch.ud['moved'] += abs(touch.dx) + abs(touch.dy)
-            # The game moves the camera from a relative delta, so hand it
-            # the same thing a mouse would report.
-            self.on_look(touch.dx, touch.dy)
-            return True
-        return False
+        elif role == 'look':
+            extra['moved'] += abs(dx) + abs(dy)
+            # The game moves the camera from a relative delta, exactly as a
+            # mouse reports it, so no absolute position is involved.
+            self.on_look(dx * LOOK_SENSITIVITY, dy * LOOK_SENSITIVITY)
 
-    def on_touch_up(self, touch):
-        role = touch.ud.get('role')
+    def finger_up(self, finger, x, y):
+        role, extra = self._fingers.pop(finger, (None, None))
         if role == 'move':
             self._stick_origin = self._stick_thumb = None
             self._release_directions()
-            self._redraw()
-            return True
-        if role == 'button':
-            self._press_button(touch.ud['button'], False)
-            self._redraw()
-            return True
-        if role == 'look':
-            held = touch.time_end - touch.ud['time']
-            still = touch.ud['moved'] < TAP_SLOP
-            if still:
-                # A quick tap breaks a block, a deliberate hold places one:
+        elif role == 'button':
+            self._press(extra, False)
+        elif role == 'look':
+            held = time.monotonic() - extra['time']
+            if extra['moved'] < self.tap_slop:
+                # A quick tap breaks a block, a deliberate hold places one -
                 # the two mouse buttons a desktop player would use.
                 button = mouse.LEFT if held < TAP_SECONDS else mouse.RIGHT
                 self.on_button(button, True)
                 self.on_button(button, False)
-            return True
-        return False
 
-    # -- state -------------------------------------------------------------
-
-    #: One place, because a caption, a highlight and a keypress that
-    #: disagree about which button was hit is a bug waiting to happen.
-    BUTTON_KEYS = {'jump': key.SPACE, 'inventory': key.E, 'escape': key.ESCAPE}
-
-    def _press_button(self, name, pressed):
-        symbol = self.BUTTON_KEYS[name]
+    def _press(self, symbol, pressed):
         if pressed:
-            self.held_keys.add(symbol)
+            self.held.add(symbol)
         else:
-            self.held_keys.discard(symbol)
-        self.on_button(symbol, pressed)
-
-    DIRECTIONS = ((key.W, 0, 1), (key.S, 0, -1), (key.A, -1, 0), (key.D, 1, 0))
+            self.held.discard(symbol)
+        self.on_key(symbol, pressed)
 
     def _release_directions(self):
-        for symbol, _dx, _dy in self.DIRECTIONS:
-            self.held_keys.discard(symbol)
+        for symbol, _ax, _ay in self.DIRECTIONS:
+            if symbol in self.held:
+                self._press(symbol, False)
 
     def _update_stick(self):
         dx = self._stick_thumb[0] - self._stick_origin[0]
         dy = self._stick_thumb[1] - self._stick_origin[1]
-        self._release_directions()
-        if (dx * dx + dy * dy) ** 0.5 < STICK_DEADZONE:
+        if (dx * dx + dy * dy) ** 0.5 < self.stick_deadzone:
+            self._release_directions()
             return
-        # Diagonals matter - a player walks north-east constantly - so test
-        # each axis separately instead of picking one dominant direction.
+
+        # Test each axis separately rather than picking one dominant
+        # direction: walking north-east is the normal case, not an edge one.
         for symbol, ax, ay in self.DIRECTIONS:
-            projection = dx * ax + dy * ay
-            if projection > STICK_DEADZONE * 0.7:
-                self.held_keys.add(symbol)
+            wanted = (dx * ax + dy * ay) > self.stick_deadzone * 0.7
+            if wanted and symbol not in self.held:
+                self._press(symbol, True)
+            elif not wanted and symbol in self.held:
+                self._press(symbol, False)
 
     # -- drawing -----------------------------------------------------------
 
-    def _redraw(self, *_args):
-        self.canvas.clear()
-        with self.canvas:
-            Color(1, 1, 1, 0.22)
-            origin = self._stick_origin or (
-                self.x + STICK_RANGE + BUTTON_MARGIN * 2,
-                self.y + STICK_RANGE + BUTTON_MARGIN * 2)
-            Line(circle=(origin[0], origin[1], STICK_RANGE), width=dp(1.5))
+    def draw(self):
+        """Paint the overlay over whatever the game just rendered.
 
-            thumb = self._stick_thumb or origin
-            Color(1, 1, 1, 0.45 if self._stick_thumb else 0.25)
-            radius = STICK_RANGE * 0.42
-            Ellipse(pos=(thumb[0] - radius, thumb[1] - radius),
-                    size=(radius * 2, radius * 2))
+        Fixed-function GL, drawn straight after the game's frame and before
+        the buffer swap, so the controls neither depend on the game's
+        renderer nor disturb it: every piece of state touched is pushed and
+        popped around the drawing.
+        """
+        from pyglet import gl
 
-            for name, bx, by, size in self._buttons():
-                symbol = self.BUTTON_KEYS[name]
-                Color(1, 1, 1, 0.4 if symbol in self.held_keys else 0.18)
-                Rectangle(pos=(bx, by), size=(size, size))
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glPushMatrix()
+        gl.glLoadIdentity()
+        gl.glOrtho(0.0, self.width, 0.0, self.height, -1.0, 1.0)
+        gl.glMatrixMode(gl.GL_MODELVIEW)
+        gl.glPushMatrix()
+        gl.glLoadIdentity()
 
-        for name, bx, by, size in self._buttons():
-            caption = self._captions[name]
-            caption.size = (size, size)
-            caption.pos = (bx, by)
+        gl.glDisable(gl.GL_DEPTH_TEST)
+        gl.glDisable(gl.GL_TEXTURE_2D)
+        gl.glDisable(gl.GL_ALPHA_TEST)
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+
+        origin = self._stick_origin or self._resting_stick()
+        self._ring(origin[0], origin[1], self.stick_range)
+
+        thumb = self._stick_thumb or origin
+        self._disc(thumb[0], thumb[1], self.stick_range * 0.42,
+                   0.45 if self._stick_thumb else 0.22)
+
+        for _name, symbol, bx, by, size in self.button_rects():
+            self._quad(bx, by, size, size,
+                       0.42 if symbol in self.held else 0.16)
+
+        gl.glDisable(gl.GL_BLEND)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glPopMatrix()
+        gl.glMatrixMode(gl.GL_MODELVIEW)
+        gl.glPopMatrix()
+
+    # A ring, a disc and a quad are the whole vocabulary. Client-side
+    # arrays rather than immediate mode: it is what the game uses, so it is
+    # the path through gl4es that is already known to work.
+    @staticmethod
+    def _vertices(points, mode, alpha):
+        import ctypes
+
+        from pyglet import gl
+
+        flat = [coordinate for point in points for coordinate in point]
+        buffer = (gl.GLfloat * len(flat))(*flat)
+        gl.glColor4f(1.0, 1.0, 1.0, alpha)
+        gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
+        gl.glVertexPointer(2, gl.GL_FLOAT, 0,
+                           ctypes.cast(buffer, ctypes.c_void_p))
+        gl.glDrawArrays(mode, 0, len(points))
+        gl.glDisableClientState(gl.GL_VERTEX_ARRAY)
+
+    @staticmethod
+    def _circle_points(cx, cy, radius, segments=28):
+        import math
+        step = 2.0 * math.pi / segments
+        return [(cx + math.cos(i * step) * radius,
+                 cy + math.sin(i * step) * radius) for i in range(segments)]
+
+    def _quad(self, x, y, width, height, alpha):
+        from pyglet import gl
+        self._vertices([(x, y), (x + width, y),
+                        (x + width, y + height), (x, y + height)],
+                       gl.GL_QUADS, alpha)
+
+    def _disc(self, cx, cy, radius, alpha):
+        from pyglet import gl
+        self._vertices([(cx, cy)] + self._circle_points(cx, cy, radius)
+                       + [(cx + radius, cy)], gl.GL_TRIANGLE_FAN, alpha)
+
+    def _ring(self, cx, cy, radius):
+        from pyglet import gl
+        self._vertices(self._circle_points(cx, cy, radius),
+                       gl.GL_LINE_LOOP, 0.20)

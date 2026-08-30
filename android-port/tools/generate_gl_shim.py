@@ -54,7 +54,9 @@ def harvest():
 #: Not referenced by the game, but the epilogue's gl_info needs them and a
 #: caller debugging a blank frame will want glGetError.
 FORCE = ('GL_VERSION', 'GL_RENDERER', 'GL_VENDOR', 'GL_EXTENSIONS',
-         'glGetString', 'glGetError')
+         'glGetString', 'glGetError',
+         # The touch overlay draws with these; the game itself never does.
+         'GL_TRIANGLE_FAN', 'GL_LINE_LOOP', 'glColor4ub')
 
 
 def wanted():

@@ -9,3 +9,7 @@ MIDDLE = 2
 RIGHT = 4
 MOUSE4 = 8
 MOUSE5 = 16
+
+
+# Behaviour, not table: see pyglet/window/_state.py.
+from pyglet.window._state import MouseStateHandler  # noqa: E402,F401

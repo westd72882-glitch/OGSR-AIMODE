@@ -201,3 +201,7 @@ LOPTION = 65519
 ROPTION = 65520
 DELETE = 65535
 MOTION_DELETE = 65535
+
+
+# Behaviour, not table: see pyglet/window/_state.py.
+from pyglet.window._state import KeyStateHandler  # noqa: E402,F401
