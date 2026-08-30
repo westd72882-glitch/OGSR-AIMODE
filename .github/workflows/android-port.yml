@@ -126,29 +126,37 @@ jobs:
           log=android-port/build-output.log
           if [ -f "$log" ]; then
             {
-              echo '## Compile errors'
+              echo "## Diagnosis (log has $(wc -l < "$log") lines)"
               echo '```'
-              grep -n -A 12 "Error compiling Cython file" "$log" 2>/dev/null | head -n 40
-              grep -inE "(fatal error|undeclared|no such file|not a supported wheel)" \
-                "$log" 2>/dev/null | tail -n 8
-              echo '```'
-              echo
-              echo '## Cythonise + recipe'
-              echo '```'
-              grep -nE "don.t have recipes|were not found as recipes" "$log" 2>/dev/null | tail -n 3
-              grep -nE "mcgame: marked|mcgame: (installing|pre-installing)" "$log" 2>/dev/null | tail -n 8
-              d=$(find android-port/.buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
-              [ -n "$d" ] && echo "pyx: $(find "$d" -name '*.pyx' | wc -l)  c: $(find "$d" -name '*.c' | wc -l)"
-              echo '```'
-              echo
-              echo "## Failure (log has $(wc -l < "$log") lines)"
-              echo '```'
-              end=$(grep -n "ENVIRONMENT:" "$log" 2>/dev/null | tail -1 | cut -d: -f1)
-              if [ -n "$end" ]; then
-                start=$((end > 80 ? end - 80 : 1)); sed -n "${start},${end}p" "$log"
+              # Gradle prints its own failure block; it sits in the middle of
+              # the log, far from the tail buildozer leaves behind.
+              g=$(grep -n "FAILURE: Build failed" "$log" 2>/dev/null | tail -1 | cut -d: -f1)
+              if [ -n "$g" ]; then
+                sed -n "${g},$((g + 70))p" "$log"
+                echo '--- task/compile errors ---'
+                grep -nE "Execution failed for task|^e: |^ *ERROR:|error: |AAPT" "$log" \
+                  2>/dev/null | tail -n 25
               else
-                tail -n 50 "$log"
+                # The first build_ext always fails before cythonising, so a
+                # missing .c there is normal; only Cython's own errors matter.
+                grep -n -A 12 "Error compiling Cython file" "$log" 2>/dev/null | head -n 40
+                grep -inE "(fatal error|undeclared|not a supported wheel|Traceback)" \
+                  "$log" 2>/dev/null | tail -n 10
+                end=$(grep -n "ENVIRONMENT:" "$log" 2>/dev/null | tail -1 | cut -d: -f1)
+                if [ -n "$end" ]; then
+                  start=$((end > 60 ? end - 60 : 1)); sed -n "${start},${end}p" "$log"
+                else
+                  tail -n 50 "$log"
+                fi
               fi
+              echo '```'
+              echo
+              echo '## Recipe stage'
+              echo '```'
+              grep -nE "don.t have recipes|were not found as recipes" "$log" 2>/dev/null | tail -n 2
+              grep -nE "mcgame: (installing|pre-installing)" "$log" 2>/dev/null | tail -n 4
+              d=$(find android-port/.buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
+              [ -n "$d" ] && echo "c files: $(find "$d" -name '*.c' | wc -l)"
               echo '```'
             } >> "$summary"
           fi
