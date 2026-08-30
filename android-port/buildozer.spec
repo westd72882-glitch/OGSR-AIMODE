@@ -11,6 +11,10 @@ source.include_exts = py,png,jpg,gif,ogg,txt,mclevel
 source.exclude_dirs = game,p4a-recipes,bin,.buildozer
 
 version = 20100223
+# Without this p4a derives the version code as 10 + minapi + version
+# (102420100223), which does not fit a Java int; gradle then coerces it
+# to null and refuses the project with "Value is null".
+android.numeric_version = 20100223
 
 # mcgame is the local recipe that cythonises the game's 33 .pyx modules.
 # charset_normalizer is listed on purpose. p4a's resolver skips any

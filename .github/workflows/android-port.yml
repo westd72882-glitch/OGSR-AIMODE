@@ -151,6 +151,12 @@ jobs:
               fi
               echo '```'
               echo
+              echo '## Generated build.gradle (head)'
+              echo '```'
+              b=$(ls android-port/.buildozer/android/platform/build-*/dists/*/build.gradle 2>/dev/null | head -1)
+              [ -n "$b" ] && sed -n '20,40p' "$b" | cat -n
+              echo '```'
+              echo
               echo '## Recipe stage'
               echo '```'
               grep -nE "don.t have recipes|were not found as recipes" "$log" 2>/dev/null | tail -n 2
