@@ -29,6 +29,9 @@ def pyglet_sources():
 
 
 def harvest():
+    # Aliases keep pyglet's own file order: several are defined in terms of
+    # earlier ones (GLhandleARB = GLuint), so sorting them alphabetically
+    # emits a forward reference that only fails at import time on the device.
     aliases, consts, funcs = {}, {}, {}
     for path in pyglet_sources():
         with open(path) as handle:
@@ -63,6 +66,38 @@ def wanted():
     return sorted(found | set(FORCE))
 
 
+#: Names the prologue already brings into scope.
+PRELUDE = frozenset((
+    'CFUNCTYPE', 'POINTER', 'None', 'ctypes', 'c_ptrdiff_t',
+    'c_char', 'c_double', 'c_float', 'c_int', 'c_int64', 'c_short',
+    'c_ubyte', 'c_uint', 'c_uint64', 'c_ushort', 'c_void_p',
+))
+
+IDENT = re.compile(r'[A-Za-z_]\w*')
+
+
+def resolvable(aliases):
+    """Drop aliases that name something we do not emit.
+
+    pyglet declares a few types over ctypes Structures it defines inline
+    (GLsync = POINTER(struct___GLsync)). Copying only the alias leaves a
+    forward reference that raises at import - on the device, after a
+    fifteen minute build. None of them are names the game uses, so keeping
+    an alias only when every name in it already resolves is both safe and
+    the only rule that cannot produce this class of failure again.
+    """
+    known = set(PRELUDE)
+    kept, dropped = {}, []
+    for name, value in aliases.items():
+        unresolved = [word for word in IDENT.findall(value) if word not in known]
+        if unresolved:
+            dropped.append('%s (needs %s)' % (name, ', '.join(sorted(set(unresolved)))))
+            continue
+        kept[name] = value
+        known.add(name)
+    return kept, dropped
+
+
 def main():
     aliases, consts, funcs = harvest()
     names = wanted()
@@ -78,9 +113,12 @@ def main():
         else:
             missing.append(name)
 
+    aliases, dropped = resolvable(aliases)
+
     body = []
-    body.append('# Type aliases, copied verbatim so the signatures below parse.')
-    for name, value in sorted(aliases.items()):
+    body.append('# Type aliases, in pyglet\'s own order: some are defined in')
+    body.append('# terms of earlier ones, so this order is load-bearing.')
+    for name, value in aliases.items():
         body.append('%s = %s' % (name, value))
 
     body.append('')
@@ -113,6 +151,7 @@ def main():
     print('constants %d, functions %d, aliases %d' % (
         len(used_consts), len(used_funcs), len(used_aliases)))
     print('not found in pyglet: %s' % (', '.join(missing) or 'none'))
+    print('aliases dropped as unresolvable: %s' % (', '.join(dropped) or 'none'))
 
 
 if __name__ == '__main__':

@@ -164,7 +164,10 @@ jobs:
               d=$(find android-port/.buildozer -type d -name mcgame -path "*other_builds*" 2>/dev/null | head -1)
               [ -n "$d" ] && echo "c files: $(find "$d" -name '*.c' | wc -l)"
               echo '```'
-            } >> "$summary"
+            # buildozer echoes entire zip command lines - one of them runs
+            # to 20 KB - so truncate everything rather than let a single
+            # line bury the report.
+            } | cut -c1-300 >> "$summary"
           fi
 
           cat "$summary"

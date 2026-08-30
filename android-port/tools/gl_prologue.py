@@ -15,6 +15,7 @@ is current instead.
 """
 
 import ctypes
+import os
 import sys
 from ctypes import (CFUNCTYPE, POINTER, c_char, c_double, c_float, c_int,
                     c_int64, c_short, c_ubyte, c_uint, c_uint64, c_ushort,
@@ -35,8 +36,12 @@ _CANDIDATES = ('libgl4es.so', 'libGL.so.1', 'libGL.so')
 
 
 def _load():
+    # The override exists so tools/check_gl_shim.py can import this module
+    # off-device against a stub, which is the only way to catch a bad name
+    # order or a malformed signature before a 15-minute build.
+    override = os.environ.get('GL4ES_LIBRARY')
     errors = []
-    for name in _CANDIDATES:
+    for name in ((override,) if override else _CANDIDATES):
         try:
             return ctypes.CDLL(name)
         except OSError as exc:
