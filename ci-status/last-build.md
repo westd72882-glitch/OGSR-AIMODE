@@ -1,82 +1,85 @@
-# Build 33 — failure
+# Build 34 — success
 
-commit: 4bb4f1ab1a860c534dd176edf593817955e6d53f
-run: https://github.com/westd72882-glitch/OGSR-AIMODE/actions/runs/33297973252
+commit: a5c7ffcd539c9f7fef27dafe1545cfc30cc90d75
+run: https://github.com/westd72882-glitch/OGSR-AIMODE/actions/runs/33298580258
 
-## Diagnosis (log has 635 lines)
+## Diagnosis (log has 335 lines)
 ```
-FAILURE: Build failed with an exception.
+[1m[90m[DEBUG][39m[0m:   	> Task :processDebugResources
+[1m[90m[DEBUG][39m[0m:   	> Task :mergeDebugJniLibFolders
+[1m[90m[DEBUG][39m[0m:   	
+[1m[90m[DEBUG][39m[0m:   	> Task :compileDebugJavaWithJavac
+[1m[90m[DEBUG][39m[0m:   	Note: Some input files use or override a deprecated API.
+[1m[90m[DEBUG][39m[0m:   	Note: Recompile with -Xlint:deprecation for details.
+[1m[90m[DEBUG][39m[0m:   	
+[1m[90m[DEBUG][39m[0m:   	> Task :dexBuilderDebug
+[1m[90m[DEBUG][39m[0m:   	> Task :mergeProjectDexDebug
+[1m[90m[DEBUG][39m[0m:   	> Task :mergeDebugNativeLibs
+[1m[90m[DEBUG][39m[0m:   	> Task :validateSigningDebug
+[1m[90m[DEBUG][39m[0m:   	> Task :writeDebugAppMetadata
+[1m[90m[DEBUG][39m[0m:   	> Task :writeDebugSigningConfigVersions
+[1m[90m[DEBUG][39m[0m:   	> Task :stripDebugDebugSymbols
+[1m[90m[DEBUG][39m[0m:   	> Task :packageDebug
+[1m[90m[DEBUG][39m[0m:   	> Task :createDebugApkListingFileRedirect
+[1m[90m[DEBUG][39m[0m:   	> Task :assembleDebug
+[1m[90m[DEBUG][39m[0m:   	
+[1m[90m[DEBUG][39m[0m:   	[Incubating] Problems report is available at: file:///home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/dists/mcpython/build/reports/problems/problems-report.html
+[1m[90m[DEBUG][39m[0m:   	
+[1m[90m[DEBUG][39m[0m:   	Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+[1m[90m[DEBUG][39m[0m:   	
+[1m[90m[DEBUG][39m[0m:   	You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+[1m[90m[DEBUG][39m[0m:   	
+[1m[90m[DEBUG][39m[0m:   	For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+[1m[90m[DEBUG][39m[0m:   	
+[1m[90m[DEBUG][39m[0m:   	BUILD SUCCESSFUL in 41s
+[1m[90m[DEBUG][39m[0m:   	34 actionable tasks: 34 executed
+[1m[INFO][0m:    [36m<- directory context /home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/python-for-android[39m
+[1m[90m[DEBUG][39m[0m:   All possible dists: [<Distribution: name mcpython with recipes (freetype, hostpython3, jpeg, libffi, openssl, png, sdl2_image, sdl2_mixer, sdl2_ttf, sqlite3, python3, sdl2, numpy, pillow, pyjnius, setuptools, android, mcgame, kivy, nbtlib, filetype, certifi, six, idna, requests, chardet, charset_normalizer, urllib3)>]
+[1m[90m[DEBUG][39m[0m:   Dist matching name and arch: [<Distribution: name mcpython with recipes (freetype, hostpython3, jpeg, libffi, openssl, png, sdl2_image, sdl2_mixer, sdl2_ttf, sqlite3, python3, sdl2, numpy, pillow, pyjnius, setuptools, android, mcgame, kivy, nbtlib, filetype, certifi, six, idna, requests, chardet, charset_normalizer, urllib3)>]
+[1m[90m[DEBUG][39m[0m:   Dist matching ndk_api and recipe: [<Distribution: name mcpython with recipes (freetype, hostpython3, jpeg, libffi, openssl, png, sdl2_image, sdl2_mixer, sdl2_ttf, sqlite3, python3, sdl2, numpy, pillow, pyjnius, setuptools, android, mcgame, kivy, nbtlib, filetype, certifi, six, idna, requests, chardet, charset_normalizer, urllib3)>]
+[1m[INFO][0m:    Of the existing distributions, the following meet the given requirements:
+[1m[INFO][0m:    	[32m[1mmcpython[0m: min API 24, includes recipes ([32mfreetype, hostpython3, jpeg, libffi, openssl, png, sdl2_image, sdl2_mixer, sdl2_ttf, sqlite3, python3, sdl2, numpy, pillow, pyjnius, setuptools, android, mcgame, kivy, nbtlib, filetype, certifi, six, idna, requests, chardet, charset_normalizer, urllib3[0m), built for archs ([34marm64-v8a[0m)
+[1m[INFO][0m:    [1m[94mmcpython has compatible recipes, using this one[0m
+[1m[INFO][0m:    [1m[32m# Copying android package to current directory[0m[39m
+[1m[INFO][0m:    [1m[32m# Android package filename not found in build output. Guessing...[0m[39m
+[1m[INFO][0m:    [1m[32m# Found android package file: /home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/dists/mcpython/build/outputs/apk/debug/mcpython-debug.apk[0m[39m
+[1m[INFO][0m:    # Add version number to android package
+[1m[INFO][0m:    # Android package renamed to mcpython-debug-20100223.apk
+stty: 'standard input': Inappropriate ioctl for device
+[1m[90m[DEBUG][39m[0m:   [90m->[0m running cp /home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/dists/mcpython/build/outputs/apk/debug/mcpython-debug.apk mcpython-debug-20100223.apk[0m
+No setup.py/pyproject.toml used, copying full private data into .apk.
+Applying Java source code patches...
+Applying patch: src/patches/SDLActivity.java.patch
+Warning: failed to apply patch (exit code 1), assuming it is already applied:  src/patches/SDLActivity.java.patch
+Applying patch: src/patches/SDLSurface.java.patch
+Warning: failed to apply patch (exit code 1), assuming it is already applied:  src/patches/SDLSurface.java.patch
+[0m[1;34m# Android packaging done![0m
+[0m[1;34m# APK mcpython-20100223-arm64-v8a-debug.apk available in the bin directory[0m
+```
 
-* Where:
-Build file '/home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/dists/mcpython/build.gradle' line: 30
-
-* What went wrong:
-A problem occurred evaluating root project 'mcpython'.
-> Value is null
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
-
-You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
-
-For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
-
-BUILD FAILED in 27s
-
-
-  STDERR:
-
-[1m[INFO][0m:    STDOUT (last 20 lines of 41):
-[33m	* Where:	
-Build file '/home/runner/work/OGSR-AIMODE/OGSR-AIMODE/android-port/.buildozer/android/platform/build-arm64-v8a/dists/mcpython/build.gradle' line: 30	
-	
-* What went wrong:	
-A problem occurred evaluating root project 'mcpython'.	
-> Value is null	
-	
-* Try:	
-> Run with --stacktrace option to get the stack trace.	
-> Run with --info or --debug option to get more log output.	
-> Run with --scan to get full insights.	
-> Get more help at https://help.gradle.org.	
-	
-Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.	
-	
-You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.	
-	
-For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.	
-	
-BUILD FAILED in 27s[39m
-[1m[INFO][0m:    STDERR:
-[31m	[39m
-[1m[INFO][0m:    [33mENV:[39m
-export SHELL='/bin/bash'
-export SELENIUM_JAR_PATH='/usr/share/java/selenium-server.jar'
-export CONDA='/usr/share/miniconda'
-export GITHUB_WORKSPACE='/home/runner/work/OGSR-AIMODE/OGSR-AIMODE'
-export JAVA_HOME_11_X64='/usr/lib/jvm/temurin-11-jdk-amd64'
-export JAVA_HOME_25_X64='/usr/lib/jvm/temurin-25-jdk-amd64'
-export PKG_CONFIG_PATH='/opt/hostedtoolcache/Python/3.11.16/x64/lib/pkgconfig'
-export GITHUB_PATH='/home/runner/work/_temp/_runner_file_commands/add_path_ce464404-e737-4da3-ac98-9809b454931f'
-export GITHUB_ACTION='__run_2'
-export JAVA_HOME='/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64'
-export GITHUB_RUN_NUMBER='33'
-export RUNNER_NAME='GitHub Actions 1000000701'
-export GRADLE_HOME='/usr/share/gradle-9.7.1'
-export GITHUB_REPOSITORY_OWNER_ID='306517529'
-export ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE='/opt/actionarchivecache'
-export XDG_CONFIG_HOME='/home/runner/.config'
-export Python_ROOT_DIR='/opt/hostedtoolcache/Python/3.11.16/x64'
-export MEMORY_PRESSURE_WRITE='c29tZSAyMDAwMDAgMjAwMDAwMAA='
-export DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
-export ANT_HOME='/usr/share/ant'
-export JAVA_HOME_8_X64='/usr/lib/jvm/temurin-8-jdk-amd64'
---- task/compile errors ---
+## Generated build.gradle (head)
+```
+     1	apply plugin: 'com.android.application'
+     2	
+     3	
+     4	android {
+     5	    namespace 'org.mcpython.mcpython'
+     6	    compileSdkVersion 33
+     7	    buildToolsVersion '37.0.0'
+     8	    defaultConfig {
+     9	        minSdkVersion 24
+    10	        targetSdkVersion 33
+    11	        versionCode 20100223
+    12	        versionName '20100223'
+    13	        manifestPlaceholders = [:]
+    14	    }
+    15	
+    16		
+    17		packagingOptions {
+    18	        jniLibs {
+    19	            useLegacyPackaging = true
+    20	        }
+    21	        doNotStrip '**/*.so'
 ```
 
 ## Recipe stage
