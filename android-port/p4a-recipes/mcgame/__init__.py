@@ -166,9 +166,11 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
         kivy_garden. The check then never matches, the module stays in the
         list, and p4a builds the virtualenv whose pip is broken here.
 
-        So leave an empty marker for whichever spelling is missing. None of
-        them can shadow a real import: the genuine package is already there
-        under its own name, and hyphenated names are not importable at all.
+        So leave a marker for whichever spelling is missing. It is an empty
+        *file*, not a directory: p4a only calls exists(), which a file
+        satisfies, while an empty directory would be importable as a
+        namespace package - `import kivy_garden` would then succeed and
+        yield nothing, which fails later and far from here.
         """
         def variants(name):
             lowered = name.lower()
@@ -178,10 +180,16 @@ class MCGameRecipe(IncludedFilesBehaviour, CythonRecipe):
 
         for requirement in self.PURE_PYTHON_REQUIREMENTS:
             for spelling in sorted(variants(requirement)):
+                marker = join(target, spelling)
+                # An earlier build of this recipe left directories; the
+                # build tree is restored from CI cache, so drop them.
+                if isdir(marker) and not os.listdir(marker):
+                    os.rmdir(marker)
+                    info('mcgame: removed stale marker directory %s' % spelling)
                 if any(os.path.exists(join(target, spelling + suffix))
                        for suffix in ('', '.py', '.pyc', '.so')):
                     continue
-                os.makedirs(join(target, spelling), exist_ok=True)
+                open(marker, 'wb').close()
                 info('mcgame: marked %s as present' % spelling)
 
     def get_recipe_env(self, arch, **kwargs):
